@@ -1,0 +1,84 @@
+---
+title: "Plotting zipcode areas in R"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+Here's a quick and easy function to plot a shaded area of a zipcode over an open sourced map.
+
+To do this, I first downloaded shapefiles of zipcode polygons from the [Census Bureau](https://www.census.gov/geo/maps-data/data/cbf/cbf_zcta.html) which I then read in using `rgdal::readOGR`.
+
+```{r,message=FALSE,results='hide'}
+library(rgdal)
+zip <- readOGR(dsn = "census_zip_shpfiles", layer = "census_zip")
+```
+
+I then create a `get_zip` function which extracts the relevant polygon related to the `zipcode` variable. Note that this simply involves slicing the spatial polygon object using the ZCTA5CE10 variable in the `@data` slot.
+
+```{r}
+get_zip = function(zipcode) {
+  return(zip[zip$ZCTA5CE10==zipcode,])
+}
+```
+
+I then define a function `plot_zip` to shade the relevant zipcode on a map, using the Leaflet function.
+
+```{r,message=FALSE}
+library(leaflet); library(dplyr)
+plot_zip = function(zipcode) {
+  plt <- get_zip(zipcode) %>% leaflet() %>%
+  addPolygons(stroke = TRUE,opacity = 1,fillOpacity = 0.5, smoothFactor = 0.5,color="black",weight = 0.5) %>%
+  addTiles() 
+  return(plt)
+}
+```
+
+We can now use this function to easily take a quick look at various zipcodes. For example, I used to live in Ithaca, New york:
+
+```{r ithaca, message=FALSE,results='hide'}
+plot_zip(14850)
+```
+
+<center>
+```{r, ref.label='ithaca',echo=FALSE}
+```
+</center>
+
+<br>
+
+Now let's take a look at my current zipcode
+```{r logan,message=FALSE,results='hide'}
+plot_zip(20005)
+```
+
+<center>
+```{r,ref.label='logan', message=FALSE,echo=FALSE}
+```
+</center>
+
+<br>
+
+Finally, let's throw down a couple markers to point out a couple places I like to hang out on Friday after work. To do this, let's geocode a couple of addresses using `ggmap`.
+
+```{r , message=FALSE,results='hide'}
+x <- c("1430 Rhode Island Ave NW, Washington, DC 20005",
+       "1333 14th St NW, Washington, DC 20005")
+
+library(ggmap)
+loc <- geocode(x)
+```
+
+The `loc` is a dataframe containing the lattitude and longitude of each of the adresses. We can then plot these points on the map we created earlier using the `addMarkers` Leaflet method.
+
+```{r locations,results='hide'}
+plot_zip(20005) %>% addMarkers(lng=loc$lon,lat=loc$lat)
+```
+
+
+<center>
+```{r,ref.label='locations', echo=FALSE}
+```
+</center>
+
+The code and census data can be downloaded from this [GitHub Repository](https://github.com/hautahi/ZipCodeMapR).
